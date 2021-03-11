@@ -1,0 +1,22 @@
+class_kwargs:
+    timesteps: 5
+    aggregator: "self-attention"
+
+# Self-attention kwargs
+sa_kwargs:
+    output_dim: 129
+    num_heads: 3
+
+gnn_kwargs:
+    in_channels: 129
+    out_channels: 64
+    K: 5
+
+rnn_kwargs:
+    input_size: 64
+    hidden_size: 64
+    dropout: 0.3
+
+fc_kwargs:
+    in_features: 64
+    out_features: 129
