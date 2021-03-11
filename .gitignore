@@ -1,0 +1,10 @@
+# Python binaries
+*.pyc
+
+# Local files
+data
+notebooks
+*.ipynb_checkpoints
+.idea
+
+examples/outputs/
