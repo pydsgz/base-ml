@@ -51,13 +51,11 @@ class TransductiveMGMCModelWrapper(NeuralNetClassifier):
         pred_features = pred_matrix[:, :-num_class]
         pred_target = pred_matrix[:, -num_class:]
 
-        # Classification Loss
-        # loss_weighting = torch.tensor([0.1727, 0.2806, 0.5467]).to(y_pred_cls.device)
-        # loss_weighting = torch.tensor([1.0, 1.5, 1.5, 5.0]).to(pred_target.device)
-
         loss_weighting = None
-        ce_loss_cls = torch.nn.CrossEntropyLoss(reduction='none', weight=loss_weighting)
-        ce_loss = ce_loss_cls(pred_target, y_true.argmax(1).to(pred_target.device))
+        ce_loss_cls = torch.nn.CrossEntropyLoss(reduction='none',
+                                                weight=loss_weighting)
+        ce_loss = ce_loss_cls(pred_target, y_true.argmax(1).to(
+            pred_target.device))
         ce_loss = ce_loss[train_idx].mean()
 
         # Dirichlet Norm
@@ -88,7 +86,8 @@ class TransductiveMGMCModelWrapper(NeuralNetClassifier):
         ce_weight = 1.0
         dirichlet_weight = .000001
         frob_weight = .0001
-        total_loss = ce_weight*ce_loss + dirichlet_weight*dirichlet_loss + frob_weight*frobenius_loss
+        total_loss = ce_weight*ce_loss + dirichlet_weight*dirichlet_loss + \
+                     frob_weight*frobenius_loss
         # total_loss = ce_loss
 
         ### Confusion matrix
@@ -119,7 +118,8 @@ class TransductiveClassificationWrapper(NeuralNetClassifier):
         # Classification Loss
         train_idx = kwargs['X']['set_index'][0]
         loss_weighting = None
-        ce_loss_cls = torch.nn.CrossEntropyLoss(reduction='none', weight=loss_weighting)
+        ce_loss_cls = torch.nn.CrossEntropyLoss(reduction='none',
+                                                weight=loss_weighting)
         ce_loss = ce_loss_cls(y_pred, y_true.argmax(1).to(y_pred.device))
         ce_loss = ce_loss[train_idx].mean()
 
@@ -152,14 +152,15 @@ class TransductiveMGRGCNNModelWrapper(NeuralNetClassifier):
 
         # Classification Loss
         loss_weighting = None
-        ce_loss_cls = torch.nn.CrossEntropyLoss(reduction='none', weight=loss_weighting)
+        ce_loss_cls = torch.nn.CrossEntropyLoss(reduction='none',
+                                                weight=loss_weighting)
         ce_loss = ce_loss_cls(pred_target, y_true.argmax(1).to(pred_target.device))
         ce_loss = ce_loss[train_idx].mean()
 
         # Squared-frobenius Norm
         frobenius_loss = 0
         mask_matrix = kwargs['X'][5].to(pred_features.device).float()
-        gt_features = kwargs['X'][0].to(pred_features.device).float()[:, :-num_class]
+        gt_features = kwargs['X'][0].to(pred_features.device).float()[:,:-num_class]
         squared_diff = ((gt_features - pred_features)**2) * mask_matrix
         frobenius_loss += squared_diff.sum()
 

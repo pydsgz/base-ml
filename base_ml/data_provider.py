@@ -12,17 +12,24 @@ from torchvision import datasets, transforms
 
 
 class DataProvider(Dataset):
-    """Data provider for machine learning pipelines.
+    """Dataset provider for machine learning pipelines.
+
+    Dataset object used by any training workflow.
 
     Attributes:
-        data_x: Input features of size n x f.
-        data_y: Input target of size n x t.
-        numerical_idx: List of indeces which are numerical features in data_x.
-        non_num_idx: List of indeces which are non-numerical features in data_x.
-        adj: Adjacency matrix of size n x n
-        meta_inf: Meta-information of size n x m, this will be used to
-            calculate the adjacency matrix.
-        args: Argument parser object.
+        data_x (numpy.ndarray): Input features of size N x F.
+        data_y (numpy.ndarray): Input target of size N x T.
+        numerical_idx (:obj:`list` of :obj: `int`): List of indeces which are
+            numerical features in data_x.
+        non_num_idx (:obj:`list` of :obj: `int`): List of indeces which are
+            non-numerical features in data_x.
+        # TODO make sure variable is not a torch tensor
+        adj (numpy.ndarray): Adjacency matrix of size n x n
+        # TODO make sure variable is not a torch tensor
+        meta_inf (numpy.ndarray): Meta-information of size n x m, this will
+            be used to calculate the adjacency matrix.
+        args (argparse.ArgumentParser): Argument parser object containing
+            configuration for this dataset.
     """
     def __init__(self):
         self.data_x = None
@@ -40,26 +47,37 @@ class DataProvider(Dataset):
 
     @staticmethod
     def to_one_hot_encoding(target_data):
-        """Convert target class labels to one-hot encoding"""
+        """Returns one-hot-encoded array of size N x C
+
+        Args:
+            target_data (numpy.ndarray): numpy array containing class labels.
+        """
         target_data = target_data.squeeze()
         n_class = len(np.unique(target_data))
         res = np.eye(n_class)[target_data.astype(int)]
         return res
 
+    # TODO improve to property setter
     def set_binary_feature_idx_list(self):
-        self.binary_idx_list = np.array(utils.get_binary_indices(self.data_x, self.non_num_idx))
+        """List of ints specifying indices for binary features."""
+        binary_indices_ = utils.get_binary_indices(self.data_x,
+                                                   self.non_num_idx)
+        self.binary_idx_list = np.array(binary_indices_)
         self.non_num_idx = np.setdiff1d(self.non_num_idx, self.binary_idx_list)
 
+    # TODO improve to property setter
     def set_len_numerical_feat(self):
+        """List of ints specifying indices for numerical features."""
+        cur_len_ = len(self.numerical_idx)
         if self.binary_idx_list is not None:
-            self.len_numerical_feat = len(self.numerical_idx) + len(self.binary_idx_list)
-        else:
-            self.len_numerical_feat = len(self.numerical_idx)
+            cur_len_ += len(self.binary_idx_list)
+        self.len_numerical_feat = cur_len_
 
 
 class TransductiveMGMCDataset(Dataset):
-    """Dataset provider for MGMC learning"""
-    def __init__(self, feat_data, adj_matrix, target_data, set_idx, val_idx=None, mask_matrix=None, is_training=None,
+    """Dataset provider for matrix completion related training workflow."""
+    def __init__(self, feat_data, adj_matrix, target_data, set_idx,
+                 val_idx=None, mask_matrix=None, is_training=None,
                  args=None):
         self.adj_mat = adj_matrix
         self.target_data = target_data
@@ -74,7 +92,8 @@ class TransductiveMGMCDataset(Dataset):
         if is_training:
             # Feed training set labels as input
             if args.init_train_labels:
-                target_for_concat[np.setdiff1d(np.arange(target_data.shape[0]), set_idx), :] = 0.0
+                row_idx = np.setdiff1d(np.arange(target_data.shape[0]), set_idx)
+                target_for_concat[row_idx, :] = 0.0
 
             # Training set labels are initialized to 0.0 # was used for Dizzyreg
             else:
@@ -89,15 +108,16 @@ class TransductiveMGMCDataset(Dataset):
             cur_feat_matrix = feat_data.copy()
             self.original_feat_data = cur_feat_matrix.copy()
             cur_feat_matrix[~mask_matrix] = np.nan
-            sim_missing_feat_data, mask_simulated = utils.select_p_data_df(cur_feat_matrix, p_select=data_remain,
-                                                                           random_seed=0)
+            sim_missing_feat_data, mask_simulated = utils.select_p_data_df(
+                cur_feat_matrix, p_select=data_remain,random_seed=0)
             mask_matrix = np.isnan(sim_missing_feat_data)
             sim_missing_feat_data = np.nan_to_num(sim_missing_feat_data, 0.0)
             feat_data = sim_missing_feat_data
             self.missing_idx_sim = mask_simulated
 
         # Combine feature matrix and label matrix
-        self.feat_data = np.concatenate([feat_data, target_for_concat], -1).astype(np.float32)
+        self.feat_data = np.concatenate([feat_data, target_for_concat], -1)
+        self.feat_data = self.feat_data.astype(np.float32)
 
         # Class weighting
         class_counts = pd.Series(target_data.argmax(-1)).value_counts()
@@ -109,21 +129,14 @@ class TransductiveMGMCDataset(Dataset):
         return len(self.feat_data)
 
     def __getitem__(self, idx):
-        # ret_val = {'feat_data': self.feat_data[idx],
-        #            'adj_matrix': self.adj_mat[idx],
-        #            'idx': idx,
-        #            'tr_idx': self.idx,
-        #            'val_idx': self.val_idx,
-        #            'mask_matrix': self.mask_matrix[idx]
-        #            }
-        # return ret_val, self.target_data[idx]
-        return (self.feat_data[idx], self.adj_mat[idx], idx, self.idx, self.val_idx, self.mask_matrix[idx]), \
-               self.target_data[idx]
+        return (self.feat_data[idx], self.adj_mat[idx], idx, self.idx,
+                self.val_idx, self.mask_matrix[idx]), self.target_data[idx]
 
 
 class TransductiveGNNDataset(Dataset):
-    """Dataset provider for Transductive Classification using Graph Neural Networks."""
-    def __init__(self, feat_data, adj_matrix, target_data, set_idx, val_idx=None, mask_matrix=None):
+    """Dataset provider for Transductive GNN classification."""
+    def __init__(self, feat_data, adj_matrix, target_data, set_idx,
+                 val_idx=None, mask_matrix=None):
 
         self.feat_data = feat_data
         self.adj_mat = adj_matrix
@@ -220,7 +233,6 @@ class MNISTDataset(DataProvider):
         if self.args.graph_type:
             self.adj = self.get_adjacency()
 
-
     def get_adjacency(self):
         data_path = self.args.output_path
         save_path = os.path.join(data_path, 'adj_matrix_all.pt')
@@ -240,7 +252,8 @@ class MNISTDataset(DataProvider):
             # Thresholded
             threshold_list = [7]
             if self.args.graph_type == 1:
-                cur_adj = utils.get_thresholded_eucledian(data_arr, threshold_list)
+                cur_adj = utils.get_thresholded_eucledian(data_arr,
+                                                          threshold_list)
             else:
                 raise NotImplementedError
             with open(save_path, 'wb') as fpath:
@@ -261,7 +274,6 @@ class DizzyregDataset(DataProvider):
         self.set_len_numerical_feat()
 
         # Drop categorical columns which contains 1 unique elem and np.nan
-
 
     def _load_data(self):
         """Load data x and data y."""
@@ -411,7 +423,8 @@ class DizzyregDataset(DataProvider):
         return cur_adj
 
     def drop_one_elem_columns(self, df):
-        """Drop columns in array if there is only a single unique element in it plus np.nan."""
+        """Drop columns in array if there is only a single unique element in
+        it plus np.nan."""
         df_ = df.copy()
 
         # Incldue  columns in dataframe

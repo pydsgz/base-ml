@@ -13,8 +13,10 @@ class MultiHeadAttention(nn.Module):
         self.dim_v = split_output_dim
 
         self.v_layer = nn.Linear(self.output_dim, self.dim_v)
-        self.q_layers = nn.ModuleList([nn.Linear(self.output_dim, self.dim_q) for _ in range(self.n_head)])
-        self.k_layers = nn.ModuleList([nn.Linear(self.output_dim, self.dim_k) for _ in range(self.n_head)])
+        self.q_layers = nn.ModuleList([nn.Linear(self.output_dim, self.dim_q)
+                                       for _ in range(self.n_head)])
+        self.k_layers = nn.ModuleList([nn.Linear(self.output_dim, self.dim_k)
+                                       for _ in range(self.n_head)])
         self.attention = ScaledDotProductAttention()
         self.w_h = nn.Linear(self.dim_v, self.output_dim, bias=False)
 
@@ -28,9 +30,11 @@ class MultiHeadAttention(nn.Module):
             head, attn = self.attention(qs, ks, vs, mask)
             heads_list.append(head)
             attention_list.append(attn)
-        stacked_heads = torch.stack(heads_list, dim=2) if self.n_head > 1 else heads_list[0]
+        stacked_heads = torch.stack(heads_list, dim=2) if self.n_head > 1 \
+            else heads_list[0]
         attn = torch.stack(attention_list, dim=2)
-        outputs = torch.mean(stacked_heads, dim=2) if self.n_head > 1 else stacked_heads
+        outputs = torch.mean(stacked_heads, dim=2) if self.n_head > 1 else \
+            stacked_heads
         outputs = self.w_h(outputs)
         return outputs, attn
 
