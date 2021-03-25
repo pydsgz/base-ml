@@ -1,14 +1,15 @@
 import os
+import numpy as np
+import pandas as pd
+
 import torch
 
-import pandas as pd
-import numpy as np
 from sklearn.preprocessing import OneHotEncoder
-from torch.utils.data import Dataset
-from base_ml import utils
 from sklearn.neighbors import NearestNeighbors
-# from distython import HEOM
 from torchvision import datasets, transforms
+from torch.utils.data import Dataset
+
+from base_ml import utils
 
 
 class DataProvider(Dataset):

@@ -3,15 +3,17 @@ import os
 import pickle
 from glob import glob
 import copy
-import torch
-
 import numpy as np
 import scipy as sp
 import pandas as pd
-from ray import tune
-from hyperopt import hp, Trials, STATUS_OK, STATUS_FAIL, fmin
-import hyperopt
 
+try:
+    from hyperopt import hp, Trials, STATUS_OK, STATUS_FAIL, fmin
+    import hyperopt
+except Exception as e:
+    print(e)
+
+from ray import tune
 from sklearn.compose import ColumnTransformer
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis, LinearDiscriminantAnalysis
 from sklearn.ensemble import VotingClassifier, RandomForestClassifier, AdaBoostClassifier
@@ -29,9 +31,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import RobustScaler, OneHotEncoder, \
     FunctionTransformer, StandardScaler, LabelBinarizer
 from sklearn.tree import DecisionTreeClassifier
-
 from skorch import NeuralNetRegressor, NeuralNetClassifier, NeuralNet
 from skorch.helper import SliceDict
+import torch
 
 from base_ml import utils
 from base_ml import data_provider as dp

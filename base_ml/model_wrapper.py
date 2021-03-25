@@ -1,6 +1,6 @@
-import torch
 from sklearn.metrics import confusion_matrix, accuracy_score
 from skorch import NeuralNetClassifier
+import torch
 import torch_geometric as tg
 
 

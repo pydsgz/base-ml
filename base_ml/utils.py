@@ -1,28 +1,26 @@
 import os
 import pickle
-
-import torch
-
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools
+import pandas as pd
+
+import torch
 # from statannot import add_stat_annotation
 from scipy.stats import shapiro, ttest_rel, ttest_ind, mannwhitneyu, wilcoxon, f_oneway, friedmanchisquare, kruskal
 from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
 from skorch import callbacks
-
 import skorch
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, \
     roc_auc_score, f1_score, matthews_corrcoef, confusion_matrix, classification_report
 # from scipy import stats
-import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.preprocessing import StandardScaler, LabelBinarizer, OneHotEncoder, FunctionTransformer
 import umap
 
-from base_ml import data_provider as dp
+import data_provider as dp
 
 try:
     import seaborn as sns
