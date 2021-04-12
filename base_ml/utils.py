@@ -7,20 +7,23 @@ import pandas as pd
 
 import torch
 # from statannot import add_stat_annotation
-from scipy.stats import shapiro, ttest_rel, ttest_ind, mannwhitneyu, wilcoxon, f_oneway, friedmanchisquare, kruskal
+from scipy.stats import shapiro, ttest_rel, ttest_ind, mannwhitneyu, wilcoxon, \
+    f_oneway, friedmanchisquare, kruskal
 from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
 from skorch import callbacks
 import skorch
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, \
-    roc_auc_score, f1_score, matthews_corrcoef, confusion_matrix, classification_report
+    roc_auc_score, f1_score, matthews_corrcoef, confusion_matrix, \
+    classification_report
 # from scipy import stats
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import euclidean_distances
-from sklearn.preprocessing import StandardScaler, LabelBinarizer, OneHotEncoder, FunctionTransformer
+from sklearn.preprocessing import StandardScaler, LabelBinarizer, OneHotEncoder, \
+    FunctionTransformer
 import umap
 
-import data_provider as dp
+from base_ml import data_provider as dp
 
 try:
     import seaborn as sns
@@ -45,6 +48,19 @@ def plot_confusion_matrix(cm, classes,
                           title='Confusion matrix',
                           cmap=plt.cm.Blues,
                           filename=None):
+    """
+    Print and plot the confusion matrix given
+    Args:
+        cm:
+        classes:
+        normalize:
+        title:
+        cmap:
+        filename:
+
+    Returns:
+
+    """
     """This function prints and plots the confusion matrix.
 
     Normalization can be applied by setting `normalize=True`.
@@ -217,7 +233,6 @@ class ClassifierOutputHandler(MLOutputHandler):
             #                     box_pairs=[(("LR", "5-ANN"))],
             #                     test='Wilcoxon', text_format='star',
             #                     loc='outside', verbose=2)
-
 
             # else:
             #     cur_legend_ = ax.legend()
@@ -684,7 +699,6 @@ class MyTboard(callbacks.TensorBoard):
         self.dum_step = 0
 
     def on_epoch_end(self, net, **kwargs):
-
         out_feat = net.forward(kwargs['dataset_train'], training=False)
         pred = out_feat[0].argmax(1)
 
@@ -716,7 +730,16 @@ class MyTboard(callbacks.TensorBoard):
 
 
 def val_score(net, ds, y=None):
-    """Validation score function for stoppping criterion"""
+    """Validation score function for stoppping criterion.
+    
+    Args:
+        net: 
+        ds: 
+        y: 
+
+    Returns:
+
+    """
     # Classification loss using validation set only in transductive setting
     y_pred = net.forward(ds, training=False)
     val_idx = ds.val_idx
@@ -726,7 +749,16 @@ def val_score(net, ds, y=None):
 
 
 def mgmc_val_score(net, ds, y=None):
-    """Validation score function for stoppping criterion"""
+    """Validation score function for stoppping criterion.
+
+    Args:
+        net:
+        ds:
+        y:
+
+    Returns:
+
+    """
     # Classification loss using validation set only in transductive setting
     y_pred = net.forward(ds, training=False)
     num_class = y.shape[-1]
@@ -745,10 +777,19 @@ def cv_search_scorer(gt_target, pred_target):
 
 
 def get_thresholded_graph(meta_data_tensor, threshold_list):
-    """Get the thresholded graph given meta information and a list of thresholds."""
+    """Get the thresholded graph given meta information and a list of
+    thresholds.
+
+    Args:
+        meta_data_tensor:
+        threshold_list:
+
+    Returns:
+
+    """
     adj_list = []
     for k, v in enumerate(threshold_list):
-        meta_ = meta_data_tensor[:, k:k+1]
+        meta_ = meta_data_tensor[:, k:k + 1]
         dist = meta_[:, None, :] - meta_[None, :, :]
         cur_adj = torch.abs(dist) <= v
         cur_adj = cur_adj.long()
@@ -758,14 +799,25 @@ def get_thresholded_graph(meta_data_tensor, threshold_list):
 
 
 def get_thresholded_eucledian(input_arr, threshold_list):
-    """Get binary adjacency matrix where a connection between a node is based on
-    it's eucledian distance to another point in the given input space."""
+    """Get adjacency matrix using thresholded euclidean distance.
 
+    Get binary adjacency matrix where a connection between a node is based on
+    it's eucledian distance to another point in the given input space.
+
+    Args:
+        input_arr:
+        threshold_list:
+
+    Returns:
+
+    """
     # Given numerical data tensor, impute missing data using mean imputation
 
-    data_arr = np.where(np.isnan(input_arr), np.ma.array(input_arr, mask=np.isnan(input_arr)).mean(axis=0), input_arr)
-    assert np.isnan(data_arr).all() == False, 'Make sure there are no longer nan in data arr'
-
+    data_arr = np.where(np.isnan(input_arr),
+                        np.ma.array(input_arr, mask=np.isnan(input_arr)).mean(
+                            axis=0), input_arr)
+    assert np.isnan(
+        data_arr).all() == False, 'Make sure there are no longer nan in data arr'
 
     # Then normalize vector
     preprocessor = StandardScaler()
@@ -783,46 +835,60 @@ def get_thresholded_eucledian(input_arr, threshold_list):
     return cur_adj
 
 
-def get_feature_importance():
-    """Get feature importance of given list of pickled sklearn classifiers. """
-    model_list = [
-        '../examples/outputs/chd_3class/exp_012/model_RandomForestClassifier.pkl',
-        '../examples/outputs/chd_3class/exp_012/model_LogisticRegression.pkl',
-    ]
-    all_importances = {}
-    for i in model_list:
-        print(i)
-        predictor_ = i.split('/')[-1].replace('pkl', '')
-        with open(i, 'rb') as fpath:
-            cur_model = pickle.load(fpath)
-            list_importances = []
-            for idx_, j   in enumerate(cur_model):
-                model_ = j
-                if 'randomforest'in i.lower():
-                    res_cols, importances = plot_imp_features_rf(model_._final_estimator.best_estimator_,
-                                                                       col_names, top_features=29)
-                elif 'logistic'in i.lower():
-                    res_cols = col_names
-                    # Mean of n logistic regression models
-                    importances = np.abs(model_._final_estimator.best_estimator_.coef_).mean(0)
-
-                cur_item = pd.Series(importances, index=res_cols)
-                list_importances.append(cur_item)
-
-        all_importances[predictor_] = list_importances
+# def get_feature_importance():
+#     """Get feature importance of given list of pickled sklearn classifiers. """
+#     model_list = [
+#         '../examples/outputs/chd_3class/exp_012/model_RandomForestClassifier.pkl',
+#         '../examples/outputs/chd_3class/exp_012/model_LogisticRegression.pkl',
+#     ]
+#     all_importances = {}
+#     for i in model_list:
+#         print(i)
+#         predictor_ = i.split('/')[-1].replace('pkl', '')
+#         with open(i, 'rb') as fpath:
+#             cur_model = pickle.load(fpath)
+#             list_importances = []
+#             for idx_, j in enumerate(cur_model):
+#                 model_ = j
+#                 if 'randomforest' in i.lower():
+#                     res_cols, importances = plot_imp_features_rf(
+#                         model_._final_estimator.best_estimator_,
+#                         col_names, top_features=29)
+#                 elif 'logistic' in i.lower():
+#                     res_cols = col_names
+#                     # Mean of n logistic regression models
+#                     importances = np.abs(
+#                         model_._final_estimator.best_estimator_.coef_).mean(0)
+# 
+#                 cur_item = pd.Series(importances, index=res_cols)
+#                 list_importances.append(cur_item)
+# 
+#         all_importances[predictor_] = list_importances
 
 
 def sound():
+    """Beep sound function."""
     import time
     for i in range(60):
         print('\a')
         time.sleep(1)
 
+
 def umap2D_and_plot(numpy_arr, label_data, title, class_list):
-    """Perform UMAP embedding on given array and plot 2D embedding."""
+    """Perform UMAP embedding on given array and plot 2D embedding.
+
+    Args:
+        numpy_arr:
+        label_data:
+        title:
+        class_list:
+
+    Returns:
+    """
     latent_embedding = umap.UMAP().fit_transform(numpy_arr)
     fig, ax = plt.subplots()
-    scatter = ax.scatter(latent_embedding[:, 0], latent_embedding[:, 1], c=label_data)
+    scatter = ax.scatter(latent_embedding[:, 0], latent_embedding[:, 1],
+                         c=label_data)
     # legend1 = ax.legend(*scatter.legend_elements(),
     #                     loc="best", title="Classes")
     plt.legend(handles=scatter.legend_elements()[0], labels=class_list)
@@ -834,31 +900,34 @@ def umap2D_and_plot(numpy_arr, label_data, title, class_list):
 
 # From https://github.com/facebookresearch/PyTorch-BigGraph/pull/67
 def l2_mat(b1, b2):
-    """b1 has size B x M x D, b2 has size b2 B x N x D, res has size P x M x N """
+    """b1 has size B x M x D, b2 has size b2 B x N x D, res has size P x M x N
+
+    Args:
+        b1:
+        b2:
+
+    Returns:
+
+    """
     b1_norm = b1.pow(2).sum(dim=-1, keepdim=True)
     b2_norm = b2.pow(2).sum(dim=-1, keepdim=True)
-    res = torch.addmm(b2_norm.transpose(-2, -1), b1, b2.transpose(-2, -1), alpha=-2).add_(b1_norm)
+    res = torch.addmm(b2_norm.transpose(-2, -1), b1, b2.transpose(-2, -1),
+                      alpha=-2).add_(b1_norm)
     # mask = 1.0 - torch.ones(res.shape[0]).diag().to(res.device)
     res = res.clamp_min_(torch.finfo(torch.float32).eps).sqrt_()
     # res = res * mask
     return res
 
-    # res = torch.addmm(x2_norm.transpose(-2, -1), gl_out, gl_out.transpose(-2, -1), alpha=-2).add_(
-    #     x1_norm)
-
 
 def select_p_data_df(df, p_select, random_seed):
-    """
-    Randomly select a given percentage of data from a dataframe
+    """Randomly select a given percentage of data from a dataframe.
 
-    Parameters:
-        df: pd.Dataframe
-            Featue matrix as dataframe
-        p_select: float
-            In range (0,1)
-        random_seed: int
-    Return:
-        # TODO
+    Args:
+        df (pandas.DataFrame): Feature matrix as dataframe
+        p_select (float): proportion of elemenets to select in range (0,1)
+        random_seed (int): random seed number
+
+    Returns:
     """
     data_arr = df.copy()
     data_arr = np.array(data_arr)
@@ -893,8 +962,15 @@ def select_p_data_df(df, p_select, random_seed):
 
 
 def pretty_table(pkl_list):
-    """
-    Given a list of pickle file. Create a dataframe for all results in that pickle file.
+    """Prettify output pickle file into a single table.
+
+    Given a list of pickle file. Create a dataframe for all results in that
+    pickle file.
+
+    Args:
+        pkl_list:
+
+    Returns:
     """
     all_df = []
     for p in pkl_list:
@@ -908,10 +984,16 @@ def pretty_table(pkl_list):
 
 
 def pretty_metrics(gmc_output):
-    """
+    """Prettify classification and imputation metrics as one table.
+
     Given a list which contains a tuple of (ground truth, sigmoid_output,
     test_pred, test_RMSE) calculate, ROC-AUC, accuracy, f1-score. Then return
     classification and imputation metrics as one table.
+
+    Args:
+        gmc_output:
+
+    Returns:
     """
     # For every experiment calculate classification metrics
     pretty_output_list = []
@@ -926,7 +1008,7 @@ def pretty_metrics(gmc_output):
         cur_auc = [roc_auc_score(x[0], x[1]) for x in
                    experiment]
         if num_class > 1:
-            print('num_class here is %d' %num_class)
+            print('num_class here is %d' % num_class)
             cur_acc = [accuracy_score(np.argmax(x[0], 1), x[2]) for x in
                        experiment]
             cur_f1 = [f1_score(np.argmax(x[0], 1), x[2], average='weighted')
@@ -934,7 +1016,7 @@ def pretty_metrics(gmc_output):
 
             # Weighted average of recall and precision
             clf_report = \
-                [classification_report(np.argmax(x[0],1), x[2],
+                [classification_report(np.argmax(x[0], 1), x[2],
                                        output_dict=True) for x in experiment]
             clf_report = [pd.DataFrame(x) for x in clf_report]
 
@@ -947,16 +1029,18 @@ def pretty_metrics(gmc_output):
             cur_acc = [accuracy_score(x[0], x[2]) for x in experiment]
             cur_f1 = [f1_score(x[0], x[2]) for x in experiment]
             cur_recall = [pd.DataFrame(classification_report(x[0], x[2], \
-                                                             output_dict=True)).T.recall[1] for x in experiment]
+                                                             output_dict=True)).T.recall[
+                              1] for x in experiment]
 
             cur_specificity = [pd.DataFrame(classification_report(x[0], x[2],
-                                                                  output_dict=True)).T.recall[0] for x in experiment]
+                                                                  output_dict=True)).T.recall[
+                                   0] for x in experiment]
         cur_rmse = [x[3] for x in experiment]
 
-
-        cur_append = [cur_auc, cur_acc, cur_rmse, cur_f1, cur_recall, cur_specificity]
+        cur_append = [cur_auc, cur_acc, cur_rmse, cur_f1, cur_recall,
+                      cur_specificity]
         cur_append = pd.DataFrame(cur_append).T
-        cur_append.columns = ['AUC', 'Accuracy','RMSE', 'F-measure',
+        cur_append.columns = ['AUC', 'Accuracy', 'RMSE', 'F-measure',
                               'Sensitivity', 'Specificity']
         cur_append['%'] = p_list[k]
         pretty_output_list.append(cur_append)
@@ -965,7 +1049,14 @@ def pretty_metrics(gmc_output):
 
 
 def get_model_names(path_list):
-    """Get model name given list of paths."""
+    """Get model name given list of paths.
+
+    Args:
+        path_list:
+
+    Returns:
+
+    """
     res_list = []
     for i in path_list:
         cur_name = i.split('/')[-1]
@@ -975,7 +1066,14 @@ def get_model_names(path_list):
 
 
 def quick_load_pkl(pkl_file):
-    """Load pickplot_imp_features_rfle file"""
+    """Load pickplot_imp_features_rfle file.
+
+    Args:
+        pkl_file:
+
+    Returns:
+
+    """
     # Load gmc output numpy for every experiment
     # pkl_file = './gmc_logs/gmc_res_prior_graph.pkl'
     with open(pkl_file, 'rb') as f_pkle:
@@ -984,7 +1082,17 @@ def quick_load_pkl(pkl_file):
 
 
 def get_summary_statistics(df, cur_index, len_numerical, binary_idx_list):
-    """Get summary statistics of given indices from dataframe."""
+    """Get summary statistics of given indices from dataframe.
+
+    Args:
+        df:
+        cur_index:
+        len_numerical:
+        binary_idx_list:
+
+    Returns:
+
+    """
     summary_stat_list = []
     df = df.copy()
     for i in cur_index:
@@ -996,23 +1104,19 @@ def get_summary_statistics(df, cur_index, len_numerical, binary_idx_list):
             cur_grouped_df_ = cur_grouped_df_.groupby('label')
             cur_mean_ = cur_grouped_df_.mean().round(2).astype(str)
             cur_std_ = cur_grouped_df_.std().round(2).astype(str)
-            res_ = cur_mean_ + u" \u00B1 " +  cur_std_
+            res_ = cur_mean_ + u" \u00B1 " + cur_std_
+
         # Percentage for non-numerical data
         else:
             cur_df = df[[i, 'label']]
             num_class_ = cur_df.label.unique().size
             cur_df.replace(0.5, np.nan, inplace=True)
             cur_df.dropna(inplace=True)
-            cur_count_ = pd.Series(cur_df.groupby([i, 'label']).size().to_numpy()[-num_class_:])
+            cur_count_ = pd.Series(
+                cur_df.groupby([i, 'label']).size().to_numpy()[-num_class_:])
             cur_sum_ = cur_df.groupby('label').size()
-            # cur_grouped_df_ = cur_df[cur_df[cur_df.columns[0]] == 1].groupby('label')
-            # cur_count_ = cur_grouped_df_.count()
-            # print(f"Current count {cur_count_}")
-            # mask_ = (cur_df[cur_df.columns[0]] == 1) | (cur_df[cur_df.columns[0]] == 0)
-            # cur_sum_ = cur_df.groupby('label').count()
-            # print(f"Current sum {cur_sum_}")
-            percentage_ = ((cur_count_/cur_sum_) * 100).round(1)
-            res_ = percentage_.astype(str)+"%"
+            percentage_ = ((cur_count_ / cur_sum_) * 100).round(1)
+            res_ = percentage_.astype(str) + "%"
         res_ = pd.DataFrame(res_).T
         # print(res_)
         summary_stat_list.append(res_)
@@ -1020,7 +1124,18 @@ def get_summary_statistics(df, cur_index, len_numerical, binary_idx_list):
 
 
 def get_group_statistics(cur_selected_df, cur_index, len_numerical):
-    """Given a dataframe of feature and column label get group-wise comparison using statistical testing."""
+    """get group-wise comparison using statistical testing.
+
+    Given a dataframe of feature and column label get group-wise comparison
+    using statistical testing.
+
+    Args:
+        cur_selected_df:
+        cur_index:
+        len_numerical:
+
+    Returns:
+    """
     cur_selected_df = cur_selected_df.copy()
 
     p_val_list = []
@@ -1032,13 +1147,16 @@ def get_group_statistics(cur_selected_df, cur_index, len_numerical):
         is_numerical = i < len_numerical
         if len_class_ == 2:
             print(i, "Two class labels")
-            group_1 = cur_selected_df[i][cur_selected_df.label == cur_labels_[0]]
-            group_2 = cur_selected_df[i][cur_selected_df.label == cur_labels_[1]]
+            group_1 = cur_selected_df[i][
+                cur_selected_df.label == cur_labels_[0]]
+            group_2 = cur_selected_df[i][
+                cur_selected_df.label == cur_labels_[1]]
 
             if is_numerical:
                 print(i, "is_numerical")
                 # Check for normality
-                is_gaussian = (shapiro(group_1)[1] > 0.05) and (shapiro(group_2)[0] > 0.05)
+                is_gaussian = (shapiro(group_1)[1] > 0.05) and (
+                        shapiro(group_2)[0] > 0.05)
 
                 # Two group distribution comparison
                 if is_gaussian:
@@ -1058,7 +1176,6 @@ def get_group_statistics(cur_selected_df, cur_index, len_numerical):
                 print(cur_df)
                 print(cur_df.groupby('label').count())
                 cur_df.rename(columns={i: "{}".format(i)}, inplace=True)
-                # _, _, stats = pg.chi2_independence(cur_df[[str(i), 'label']].dropna(), str(i), 'label')
                 _, _, stats = pg.chi2_independence(cur_df, str(i), 'label')
                 print(stats)
                 p_val = stats[stats.test == 'pearson'].pval.item()
@@ -1071,9 +1188,9 @@ def get_group_statistics(cur_selected_df, cur_index, len_numerical):
                 # Get all current groups
                 cur_df = cur_selected_df[[i, 'label']]
                 cur_df.dropna(inplace=True)
-                group_list = [cur_df[i][list(cur_df.label == v)] for k, v in enumerate(cur_labels_)]
+                group_list = [cur_df[i][list(cur_df.label == v)] for k, v in
+                              enumerate(cur_labels_)]
                 group_list = [np.array(x) for x in group_list]
-
 
                 # Test for normality
                 all_gauss_list = [shapiro(x)[1] > 0.05 for x in group_list]
@@ -1083,7 +1200,8 @@ def get_group_statistics(cur_selected_df, cur_index, len_numerical):
                 if are_all_gaussian:
 
                     if is_paired:
-                        raise NotImplementedError('Repeated Measures ANOVA currently not supported...')
+                        raise NotImplementedError(
+                            'Repeated Measures ANOVA currently not supported...')
 
                     stat_test = f_oneway
 
@@ -1100,7 +1218,6 @@ def get_group_statistics(cur_selected_df, cur_index, len_numerical):
                 cur_df.replace(0.5, np.nan, inplace=True)
                 cur_df.dropna(inplace=True)
                 cur_df.rename(columns={i: "{}".format(i)}, inplace=True)
-                # _, _, stats = pg.chi2_independence(cur_df[[str(i), 'label']].dropna(), str(i), 'label')
                 _, _, stats = pg.chi2_independence(cur_df, str(i), 'label')
                 p_val = stats[stats.test == 'pearson'].pval.item()
 
@@ -1114,14 +1231,29 @@ def get_group_statistics(cur_selected_df, cur_index, len_numerical):
 
 
 def get_index(all_column_names_list, feature_name_list):
-    """Get index of current importance features"""
+    """Get index of current importance features.
+
+    Args:
+        all_column_names_list:
+        feature_name_list:
+
+    Returns:
+    """
     res_ = [all_column_names_list.index(x) for x in feature_name_list]
     return res_
 
 
 def modify_p_val(cur_p):
-    """Convert p-value to use <0.05, <0.005, or <0.0005 if value less than 0.05, 0.005, 0.0005 respectively. Else
-    just use rounded p-value."""
+    """Modify p-value for easy reporting in tables.
+
+    Convert p-value to use <0.05, <0.005, or <0.0005 if value less than 0.05,
+    0.005, 0.0005 respectively. Else, just use rounded p-value.
+
+    Args:
+        cur_p:
+
+    Returns:
+    """
     ret_val = None
     for k, val_ in enumerate([0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001]):
         if cur_p < val_:
@@ -1134,9 +1266,17 @@ def modify_p_val(cur_p):
 
 
 def get_binary_indices(data_arr, idx_list):
+    """Get indices of binary features.
+
+    Given data array and non-numerical indices, get indices of binary
+    features. This information can be use to impute missing to 0.5
+
+    Args:
+        data_arr:
+        idx_list:
+
+    Returns:
     """
-    Given data array and non-numerical indices, get indices of binary features. This information can be use to impute
-    missing to 0.5"""
     binary_var_list = []
     for i in idx_list:
         cur_unique = pd.DataFrame(data_arr[:, i]).drop_duplicates().dropna()
@@ -1147,22 +1287,14 @@ def get_binary_indices(data_arr, idx_list):
     return binary_var_list
 
 
-# def impute_binary(data_arr, indices_list, impute_val=0.5):
-#     """Given data array and indices impute binary variable with impute_val."""
-#     for i in indices_list:
-#         cur_arr_ = data_arr[:, i]
-#         if isinstance(cur_arr_, np.ndarray):
-#             cur_arr_ = np.nan_to_num(cur_arr_, impute_val)
-#         data_arr[:, i] = cur_arr_
-#     return data_arr
-
-
 def take_first_col_and_impute(data_arr):
-    """
-    Just take the first column in array and impute nan with 0.5. Used within ColumnTransformer.
+    """Take the first column in array and impute nan with 0.5. Used within
+    ColumnTransformer.
 
-    :param data_arr:
-    :return:
+    Args:
+        data_arr:
+
+    Returns:
     """
     for i in range(data_arr.shape[-1]):
         lb = LabelBinarizer()
@@ -1175,14 +1307,20 @@ def take_first_col_and_impute(data_arr):
             cur_arr[mask_] = 0.5
         else:
             cur_arr = cur_data.astype(np.float32)
-        data_arr[:, i:i+1] = cur_arr
+        data_arr[:, i:i + 1] = cur_arr
 
     return data_arr
 
 
 def encode_ordinal_feat(df, column_list, encoding_dict):
-    """
-    Change encoding of ordinal features.
+    """Change encoding of ordinal features.
+
+    Args:
+        df:
+        column_list:
+        encoding_dict:
+
+    Returns:
 
     """
     df_ = df.copy()
@@ -1195,9 +1333,18 @@ def encode_ordinal_feat(df, column_list, encoding_dict):
     return df_
 
 
+# TODO property getter
 def get_train_test_dataset_list(args, trainer, pre_processor, is_mgmc=False):
-    """Get train test dataset which will be used as input to calculate feature attributions."""
+    """Get train, test dataset for input to calculate feature attributions.
 
+    Args:
+        args:
+        trainer:
+        pre_processor:
+        is_mgmc:
+
+    Returns:
+    """
     # Get dataset
     dataset = trainer.data_provider
     cv = StratifiedKFold(n_splits=args.cv_folds, random_state=args.rand_seed)
@@ -1214,7 +1361,7 @@ def get_train_test_dataset_list(args, trainer, pre_processor, is_mgmc=False):
         args.p_remain = 1.0
         args.len_numerical_features = len(dataset.numerical_idx)
         args.num_class = np.unique(dataset.data_y.argmax(1)).size
-        torch.backends.cudnn.enabled=False
+        torch.backends.cudnn.enabled = False
 
     for folds in folds_list:
         train_index = folds[0]
@@ -1226,7 +1373,8 @@ def get_train_test_dataset_list(args, trainer, pre_processor, is_mgmc=False):
             datatrainy = dataset.data_y
             datatesty = dataset.data_y
 
-            tr_split = inner_cv.split(train_index, dataset.data_y[train_index].argmax(1))
+            tr_split = inner_cv.split(train_index,
+                                      dataset.data_y[train_index].argmax(1))
             tr_idx, val_idx = list(tr_split)[0]
             val_index = train_index[val_idx]
             train_index = train_index[tr_idx]
@@ -1237,9 +1385,8 @@ def get_train_test_dataset_list(args, trainer, pre_processor, is_mgmc=False):
             datatrainy = dataset.data_y[train_index]
             datatesty = dataset.data_y[test_index]
 
-
-        #     nonun_preprocessor = Pipeline([('preprocessing', preprocessor)])
-        nonnum_features = pre_processor.fit_transform(dataset.data_x)[:, len(dataset.numerical_idx):]
+        nonnum_features = pre_processor.fit_transform(dataset.data_x)[:,
+                          len(dataset.numerical_idx):]
 
         steps = list()
         steps.append(("preprocessor", pre_processor))
@@ -1259,21 +1406,29 @@ def get_train_test_dataset_list(args, trainer, pre_processor, is_mgmc=False):
             nonnum_test_feat = nonnum_features[test_index, :]
         train_data_x = datatrainx[:, :len(dataset.numerical_idx)]
         test_data_x = datatestx[:, :len(dataset.numerical_idx)]
-        train_data_x = np.concatenate([train_data_x, nonnum_train_feat], 1).astype(np.float32)
-        test_data_x = np.concatenate([test_data_x, nonnum_test_feat], 1).astype(np.float32)
+        train_data_x = np.concatenate([train_data_x, nonnum_train_feat],
+                                      1).astype(np.float32)
+        test_data_x = np.concatenate([test_data_x, nonnum_test_feat], 1).astype(
+            np.float32)
         if is_mgmc:
-            #         train_data_x = np.concatenate([train_data_x, datatrainy], 1)
-            #         test_data_x = np.concatenate([test_data_x, datatesty], 1)
             preprocessor_pipe = Pipeline([("preprocessor", pre_processor)])
-            mask_matrix = trainer.get_nonnum_observed_mask_matrix(train_data_x, preprocessor_pipe)
-            mask_matrix = np.concatenate([mask_matrix, np.zeros_like(datatesty).astype(bool)], 1)
+            mask_matrix = trainer.get_nonnum_observed_mask_matrix(train_data_x,
+                                                                  preprocessor_pipe)
+            mask_matrix = np.concatenate(
+                [mask_matrix, np.zeros_like(datatesty).astype(bool)], 1)
             train_adj = dataset.adj
             test_adj = dataset.adj
-            train_dataset = dp.TransductiveMGMCDataset(train_data_x, train_adj, datatrainy,
-                                                       train_index, val_index, mask_matrix, is_training=True,
+            train_dataset = dp.TransductiveMGMCDataset(train_data_x, train_adj,
+                                                       datatrainy,
+                                                       train_index, val_index,
+                                                       mask_matrix,
+                                                       is_training=True,
                                                        args=args)
-            test_dataset = dp.TransductiveMGMCDataset(test_data_x, test_adj, datatesty,
-                                                      test_index, val_index, mask_matrix, is_training=False,
+            test_dataset = dp.TransductiveMGMCDataset(test_data_x, test_adj,
+                                                      datatesty,
+                                                      test_index, val_index,
+                                                      mask_matrix,
+                                                      is_training=False,
                                                       args=args)
             train_x_list.append(train_dataset)
             train_y_list.append(datatrainy)
@@ -1289,9 +1444,23 @@ def get_train_test_dataset_list(args, trainer, pre_processor, is_mgmc=False):
     return train_x_list, train_y_list, test_x_list, test_y_list
 
 
-def get_feature_attributions(args, model_list, data_x_list, data_y_list, col_names):
-    """Get feature attributions for given list of saved Pipeline models and output dataset lists from
-    get_train_test_dataset_list()."""
+# TODO change to property getter in the future.
+def get_feature_attributions(args, model_list, data_x_list, data_y_list,
+                             col_names):
+    """Get feature attributions.
+
+    Get feature attributions for given list of saved Pipeline models and
+    output dataset lists from get_train_test_dataset_list().
+
+    Args:
+        args:
+        model_list:
+        data_x_list:
+        data_y_list:
+        col_names:
+
+    Returns:
+    """
 
     list_importances = []
     for k, i in enumerate(model_list):
@@ -1303,8 +1472,11 @@ def get_feature_attributions(args, model_list, data_x_list, data_y_list, col_nam
         if "MGMC" in i._final_estimator.module_.__class__.__name__:
             model = i._final_estimator.module_
             model.to(device_)
-            targets = torch.tensor(data_y_list[k].argmax(1)).to(torch.device(device_))
-            data_loader = torch.utils.data.DataLoader(data_x_list[k], batch_size=data_x_list[0].feat_data.shape[0])
+            targets = torch.tensor(data_y_list[k].argmax(1)).to(
+                torch.device(device_))
+            data_loader = torch.utils.data.DataLoader(data_x_list[k],
+                                                      batch_size=data_x_list[
+                                                          0].feat_data.shape[0])
 
             for batch in data_loader:
                 batch[0] = [x.to(device_) for x in batch[0]]
@@ -1315,14 +1487,11 @@ def get_feature_attributions(args, model_list, data_x_list, data_y_list, col_nam
                 out = model(format_input)
                 out = out[0][:, -args.num_class:]
                 return out
+
             attr = IntegratedGradients(model_forward, )
             fa_list = []
-            # for class_i in range(args.num_class):
-            #     cur_fa = attr.attribute(input_[0], target=class_i, additional_forward_args=input_[1:])
-            #     fa_list.append(torch.abs(cur_fa))
-            # fa_train = torch.stack(fa_list, -1).sum(-1)
-            # mean_fa = fa_train.mean(0)
-            fa_train = attr.attribute(input_[0], target=targets, additional_forward_args=input_[1:])
+            fa_train = attr.attribute(input_[0], target=targets,
+                                      additional_forward_args=input_[1:])
             fa_train = torch.abs(fa_train)
             mean_fa = fa_train.mean(0)
             mean_fa = mean_fa[:-args.num_class]
@@ -1332,7 +1501,8 @@ def get_feature_attributions(args, model_list, data_x_list, data_y_list, col_nam
             model.to(device_)
             attr = IntegratedGradients(model)
             input_ = torch.tensor(data_x_list[k]).to(torch.device(device_))
-            targets = torch.tensor(data_y_list[k].argmax(1)).to(torch.device(device_))
+            targets = torch.tensor(data_y_list[k].argmax(1)).to(
+                torch.device(device_))
             baseline = input_ * 0.
             fa_train = attr.attribute(input_, baseline, target=targets)
             fa_train = torch.abs(fa_train)
@@ -1344,7 +1514,14 @@ def get_feature_attributions(args, model_list, data_x_list, data_y_list, col_nam
 
 
 def save_fig_list(out_path, fig_list):
-    """Save given list of figures"""
+    """Save given list of figures
+
+    Args:
+        out_path:
+        fig_list:
+
+    Returns:
+    """
     if not os.path.exists(out_path):
         os.makedirs(out_path)
     for i in fig_list:
