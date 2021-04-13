@@ -1,36 +1,36 @@
 
 class TestDataProvider:
     def test_load_data(self):
-        pass
+        assert False
 
     def test_to_one_hot_encoding(self):
-        pass
+        assert False
 
     def test_set_binary_feature_idx_list(self):
-        pass
+        assert False
 
     def test_set_len_numerical_feat(self):
-        pass
+        assert False
 
     def test_dataset_provider_attributes(self):
-        pass
+        assert False
 
 
 class TestTranductiveMGMCDataset:
-    pass
+    assert False
 
 
 class TestTransductiveGNNDataset:
-    pass
+    assert False
 
 
 class TestInductiveGNNDataset:
-    pass
+    assert False
 
 
 class TestMNISTDataset:
-    pass
+    assert False
 
 
 class TestDizzyregDataset:
-    pass
+    assert False
