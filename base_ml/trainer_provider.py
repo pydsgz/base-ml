@@ -39,21 +39,6 @@ from base_ml import utils
 from base_ml import data_provider as dp
 
 
-class BaseTrainer(abc.ABCMeta):
-    # TODO
-    @property
-    def preprocessor(self):
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def train(self):
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def evaluate(self):
-        raise NotImplementedError
-
-
 class MLTrainer:
     """Trainer for Sklearn and PyTorch models.
 
