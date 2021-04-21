@@ -2,15 +2,13 @@ import argparse
 import os
 import numpy as np
 import sys
+import time
 
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis, LinearDiscriminantAnalysis
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import make_scorer
-from sklearn.model_selection import RandomizedSearchCV
-from scipy.stats import randint as sp_randint
-from scipy.stats import uniform as sp_uniform
+
 import skorch
 import torch
 from sklearn.naive_bayes import GaussianNB
@@ -18,18 +16,15 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from skopt.learning.gaussian_process.kernels import RBF
-from skorch import NeuralNetClassifier, NeuralNet
-from skorch.callbacks import Checkpoint, LoadInitState, LRScheduler
+from skorch import NeuralNetClassifier
+from skorch.callbacks import LRScheduler
 from skorch.dataset import CVSplit
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.utils.tensorboard import SummaryWriter
 
 sys.path.append('../')
 from base_ml import models, utils, model_wrapper
 from base_ml import data_provider as dp
 from base_ml import trainer_provider as tp
-import time
-from ray.tune.sklearn import TuneSearchCV
 
 
 def main():
@@ -38,7 +33,7 @@ def main():
     parser.add_argument('-x', '--exp_num', default=7, type=int, help='')
     parser.add_argument('-d', '--dataset', default='dizzyreg3', type=str,
                         help='Dataset name can be dizzyreg{1,2,3}.')
-    parser.add_argument('--output_path', default='./outputs/dizzyreg_gnn_%s/',
+    parser.add_argument('--output_path', default='./outputs/%s/',
                         type=str,
                         help='Location where all outputs will be saved.')
     parser.add_argument('--graph_type',
@@ -62,10 +57,11 @@ def main():
     parser.add_argument('--save_embedding', default=1, type=int,
                         help='Set to 1 to save embedding.')
     parser.add_argument('--p_remain', default=1.0, type=float,
-                        help='If 1.0 will not simulate missingess, else if between (0,1) will only retain given '
-                             'p_remain ration of features and randomly simulate missingness.')
+                        help='If 1.0 will not simulate missingess, else if '
+                             'between (0,1) will only retain given p_remain '
+                             'ration of features and randomly simulate '
+                             'missingness.')
     args = parser.parse_args()
-
 
     # Parameters used during training for particular session
     args.output_path = os.path.join(args.output_path, 'exp_%03d' % args.exp_num)
@@ -74,17 +70,19 @@ def main():
     args.rand_seed = 0
     args.baseline_only = True
     args.device = 2
-    args.device = 'cuda:%s' % args.device if torch.cuda.is_available() else 'cpu'
-    random_search_iter = 100  # Number of iterations to search randomsearchCV
+    args.device = 'cuda:%s' % args.device if torch.cuda.is_available() else \
+        'cpu'
     mlp_max_iter = 1000
     args.output_path = args.output_path % args.dataset
-    # args.model_conf_path = args.model_conf_path % (args.dataset, args.model_name)
+    if not os.path.exists(args.output_path):
+        os.makedirs(args.output_path)
 
     # For reproducibility
     np.random.seed(args.rand_seed)
     torch.manual_seed(args.rand_seed)
     random_state = np.random.RandomState(args.rand_seed)
     args.random_state = random_state
+
     ####################
     # Specify dataset
     ####################
@@ -94,13 +92,16 @@ def main():
         dataset = dp.DizzyregDataset(args, 2)
     elif args.dataset == 'dizzyreg3':
         dataset = dp.DizzyregDataset(args, 3)
+    elif args.dataset == 'mnist':
+        dataset = dp.MNISTDataset(args)
     else:
         raise NotImplementedError
 
     #########################
     # Baseline models
     #########################
-    cb_earlystop = skorch.callbacks.EarlyStopping(patience=30, monitor='valid_loss')
+    cb_earlystop = skorch.callbacks.EarlyStopping(patience=30,
+                                                  monitor='valid_loss')
     net = NeuralNetClassifier(
         models.MLPClassifier,
         optimizer=torch.optim.Adam,
@@ -109,7 +110,8 @@ def main():
         callbacks=[cb_earlystop],
         lr=0.001,
         module__args=args,
-        train_split=CVSplit(5, stratified=True)  # When data is fitted 20% of which is used as validation
+        train_split=CVSplit(5, stratified=True)
+        # When data is fitted 20% of which is used as validation
     )
     model_list = [
         net,
@@ -125,13 +127,14 @@ def main():
     ]
 
     trainer = tp.ClassificationTrainer(dataset, model_list, args)
-    # trainer.train()
+    trainer.train()
 
     # #########################
     # # Proposed model
     # #########################
     cb_earlystop = skorch.callbacks.EarlyStopping(patience=30,
-                                                  monitor='val_acc_crit', lower_is_better=False)
+                                                  monitor='val_acc_crit',
+                                                  lower_is_better=False)
     args.len_numerical_features = len(dataset.numerical_idx)
     args.num_class = dataset.data_y.shape[-1]
     args.num_features = dataset.data_x.shape[-1]
