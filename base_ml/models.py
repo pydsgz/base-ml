@@ -148,10 +148,19 @@ class DeepMLPClassifier(torch.nn.Module):
 class MLPClassifier(nn.Module, ConfigMixin):
     """Fully-connected Feed-Forward Neural Networks aka Multilayer Perceptrons with non-linear activation functions."""
 
-    def __init__(self, args):
+    def __init__(self, args, layer_list=None, p_list=None):
         super(MLPClassifier, self).__init__()
         self.args = args
         class_kwargs = self.load_config()
+
+        # hyperparameters from hp search
+        if layer_list is not None:
+            cur_layers = list(class_kwargs.layers)
+            cur_layers[1:-1] = [layer_list] * len(cur_layers[1:-1])
+            class_kwargs.layers = cur_layers
+        if p_list is not None:
+            class_kwargs.p = [p_list] * len(class_kwargs.p)
+
         layers_list = list(class_kwargs.get('layers'))
         dropout_list = list(class_kwargs.get('p'))
         mlp_layers = []

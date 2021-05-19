@@ -11,6 +11,7 @@ from sklearn.linear_model import LogisticRegression
 
 import skorch
 import torch
+from sklearn.model_selection import RandomizedSearchCV
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
@@ -20,17 +21,19 @@ from skorch import NeuralNetClassifier
 from skorch.callbacks import LRScheduler
 from skorch.dataset import CVSplit
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+import hyperopt
 
 sys.path.append('../')
 from base_ml import models, utils, model_wrapper
 from base_ml import data_provider as dp
 from base_ml import trainer_provider as tp
+from base_ml import hyperparam_provider as hparam
 
 
 def main():
     start_time = time.time()
     parser = argparse.ArgumentParser(description='PyTorch Dizzyreg Experiments')
-    parser.add_argument('-x', '--exp_num', default=7, type=int, help='')
+    parser.add_argument('-x', '--exp_num', default=8, type=int, help='')
     parser.add_argument('-d', '--dataset', default='dizzyreg3', type=str,
                         help='Dataset name can be dizzyreg{1,2,3}.')
     parser.add_argument('--output_path', default='./outputs/%s/',
@@ -40,8 +43,8 @@ def main():
                         default=1,
                         type=int,
                         help='1 for thresholded, 2 for knn, 3 for HEOM')
-    parser.add_argument('--gnn_layers', default=[30, 12, 12, 2], type=int,
-                        help='input, hidden, and output layer dimensions')
+    # parser.add_argument('--gnn_layers', default=[30, 12, 12, 2], type=int,
+    #                     help='input, hidden, and output layer dimensions')
     parser.add_argument('-hp', '--hp_iter', default=100,
                         type=int,
                         help='Number of iterations to run hyperparameter '
@@ -61,6 +64,13 @@ def main():
                              'between (0,1) will only retain given p_remain '
                              'ration of features and randomly simulate '
                              'missingness.')
+    parser.add_argument('--random_search', default=True, type=bool,
+                        help='If True, will perform randomized seaerch '
+                             'crossvalidation.')
+    parser.add_argument('--init_train_labels', default=0, type=int,
+                        help='If 1 will initialize training '
+                             'labels with actual labels, else replace all '
+                             'with zeros.')
     args = parser.parse_args()
 
     # Parameters used during training for particular session
@@ -86,6 +96,7 @@ def main():
     ####################
     # Specify dataset
     ####################
+    # TODO refactor to allow others to use their own datasets.
     if args.dataset == 'dizzyreg1':
         dataset = dp.DizzyregDataset(args, 1)
     elif args.dataset == 'dizzyreg2':
@@ -126,8 +137,17 @@ def main():
         LinearDiscriminantAnalysis()
     ]
 
+    if args.random_search:
+        for k, v in enumerate(model_list):
+            hyperparam_handler = hparam.HyperParameterProvider(v)
+            params = hyperparam_handler.parameters
+            model_list[k] = RandomizedSearchCV(v, params,
+                                               random_state=args.rand_seed,
+                                               n_iter=args.hp_iter)
+
+
     trainer = tp.ClassificationTrainer(dataset, model_list, args)
-    trainer.train()
+    # trainer.train()
 
     # #########################
     # # Proposed model
@@ -161,9 +181,15 @@ def main():
     # # Transductive model
     model_list = [gnn_net]
     trainer = tp.MGMCTrainer(dataset, model_list, args)
-    trainer.train()
-    print(time.time() - start_time)
+    if args.random_search:
+        hyperparam_handler = hparam.HyperParameterProvider(gnn_net)
+        params = hyperparam_handler.parameters
+        trainer.hp_search(params, algo=hyperopt.rand.suggest,
+                          max_evals=args.hp_iter)
+    else:
+        trainer.train()
 
+    print(time.time() - start_time)
 
 if __name__ == '__main__':
     main()

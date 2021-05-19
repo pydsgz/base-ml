@@ -547,8 +547,8 @@ class MGMCTrainer(MLTrainer):
             with open(save_model_path, 'wb') as pfile:
                 pickle.dump(pipe_list, pfile, protocol=pickle.HIGHEST_PROTOCOL)
 
-
-    def hp_search(self, parameters_space):
+    def hp_search(self, parameters_space, algo=hyperopt.tpe.suggest,
+                  max_evals=120):
         """Search hyperparamters given model and hyperparater space."""
         print('Running hyperparam search...')
         # how many additional trials to do after loading saved
@@ -574,10 +574,12 @@ class MGMCTrainer(MLTrainer):
                 print("Starting from scratch: new trials created.")
 
             best_model = hyperopt.fmin(self.hp_objective, parameters_space, trials=trials,
-                                       algo=hyperopt.tpe.suggest,
-                                       max_evals=120)
+                                       algo=algo,
+                                       max_evals=max_evals)
             with open(self.pickle_str, "wb") as f:
                 pickle.dump(trials, f)
+                if os.stat(self.pickle_str).st_size == 0:
+                    os.remove(self.pickle_str)
             print("HP search done...")
         else:
             # Rerun training using best hyperparameters
