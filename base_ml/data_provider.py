@@ -417,3 +417,85 @@ class DizzyregDataset(DataProvider):
 
         df_ = df_[include_idx]
         return df_
+
+
+class TADPOLEDataset(DataProvider):
+    """TADPOLE dataset provider."""
+    def __init__(self, args):
+        super(TADPOLEDataset, self).__init__()
+        self.args = args
+        self.all_non_numerical_idx = None
+        self._load_data()
+
+    def _load_data(self):
+        """Load data x and data y."""
+
+        path_data_x = '../data/tadpole/adni_one_baseline_feature_data.csv'
+        path_data_y = '../data/tadpole/adni_one_baseline_label_data.csv'
+        path_meta = '../data/tadpole/adni_one_baseline_meta_data.csv'
+        read_data_x = pd.read_csv(path_data_x)
+        read_data_y = pd.read_csv(path_data_y)  # 0 NL, 1, MCI, 2 Dementia
+        read_data_meta = pd.read_csv(path_meta)[['AGE', 'PTGENDER', 'APOE4']]
+
+        # Replace gender to numeric
+        read_data_meta.PTGENDER = read_data_meta.PTGENDER.replace('Male', 0)
+        read_data_meta.PTGENDER = read_data_meta.PTGENDER.replace('Female', 1)
+
+        new_data_x = np.array(read_data_x).astype(np.float32)
+        new_data_y = np.array(read_data_y).astype(np.float32)
+        new_data_meta = np.array(read_data_meta).astype(np.float32)
+
+        # Concat meta-information with feature vector input
+        concat_meta = pd.DataFrame(new_data_meta)
+        concat_meta.iloc[:, 2] = concat_meta.iloc[:, 2].replace(0, 'zero')
+        concat_meta.iloc[:, 2] = concat_meta.iloc[:, 2].replace(1, 'one')
+        concat_meta.iloc[:, 2] = concat_meta.iloc[:, 2].replace(2, 'two')
+        concat_meta = concat_meta.to_numpy()
+        new_data_x = np.concatenate([concat_meta, new_data_x], 1)
+        print(new_data_x.shape, new_data_y.shape, new_data_meta.shape)
+
+        self.data_x = new_data_x
+        self.data_y = self.to_one_hot_encoding(new_data_y)
+        self.numerical_idx = np.arange(new_data_x.shape[-1])
+        self.numerical_idx = np.delete(self.numerical_idx, [2])  # Remove APOE column idx
+        self.non_num_idx = np.array([2])
+        self.all_non_numerical_idx = None
+
+        # Calculate adjacency matrix
+        self.meta_inf = new_data_meta.astype('float32')
+        if self.args.graph_type:
+            self.adj = self.get_adjacency()
+
+    def get_adjacency(self):
+        save_path = self.args.output_path
+
+        save_path = os.path.join(save_path, 'adj_matrix_all.pt')
+
+        if self.args.graph_type == 1:
+            save_path = save_path.replace('.pt', '_thresholded.pt')
+        elif self.args.graph_type == 2:
+            save_path = save_path.replace('.pt', '_knn.pt')
+        elif self.args.graph_type == 3:
+            save_path = save_path.replace('.pt', '_heom.pt')
+        elif self.args.graph_type == 4:
+            save_path = save_path.replace('.pt', '_HeomSubset.pt')
+        else:
+            raise NotImplementedError
+
+        # Load adjacency matrix if available, otherwise calculate it
+        if os.path.exists(save_path):
+            with open(save_path, 'rb') as fpath:
+                cur_adj = torch.load(fpath)
+        else:
+            # Calculate adjacency using given similarity metric.
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            cur_meta = torch.from_numpy(self.meta_inf).float().to(device)
+            # Thresholded similarity metric
+            threshold_list = [5, 0, 0]
+            if self.args.graph_type == 1:
+                cur_adj = utils.get_thresholded_graph(cur_meta, threshold_list)
+            else:
+                raise NotImplementedError
+            with open(save_path, 'wb') as fpath:
+                torch.save(cur_adj, fpath)
+        return cur_adj
