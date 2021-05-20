@@ -390,33 +390,13 @@ class DizzyregDataset(DataProvider):
 
             # HEOM (https://github.com/KacperKubara/distython)
             elif self.args.graph_type == 3:
-                cur_meta = cur_meta.cpu().numpy()
-                cur_meta = np.nan_to_num(cur_meta, nan=-99999)
-                heom_metric = HEOM(cur_meta, self.all_non_numerical_idx,
-                                   nan_equivalents=[-99999])
-                graph_row_neighbors = utils.get_k_nearest_neighbors(
-                    cur_meta, 10, metric=heom_metric.heom)
-                cur_adj = utils.get_adjacency_matrix(cur_meta,
-                                                     graph_row_neighbors)
-                cur_adj = torch.tensor(cur_adj)
-                cur_adj = torch.eye(cur_adj.shape[0]) + cur_adj.triu(1) + \
-                          cur_adj.triu(1).t().contiguous()
-                cur_adj = cur_adj.long()
+                raise ValueError(f"graph_type = {self.args.graph_type} "
+                                 f"currently not supported")
 
-            # Use
             elif self.args.graph_type == 4:
-                cur_meta = cur_meta.cpu().numpy()
-                cur_meta = np.nan_to_num(cur_meta, nan=-99999)
-                heom_metric = HEOM(cur_meta, self.all_non_numerical_idx,
-                                   nan_equivalents=[-99999])
-                graph_row_neighbors = utils.get_k_nearest_neighbors(
-                    cur_meta, 10, metric=heom_metric.heom)
-                cur_adj = utils.get_adjacency_matrix(cur_meta,
-                                                     graph_row_neighbors)
-                cur_adj = torch.tensor(cur_adj)
-                cur_adj = torch.eye(cur_adj.shape[0]) + cur_adj.triu(1) + \
-                          cur_adj.triu(1).t().contiguous()
-                cur_adj = cur_adj.long()
+                raise ValueError(f"graph_type = {self.args.graph_type} "
+                                 f"currently not supported")
+
             else:
                 raise NotImplementedError
             with open(save_path, 'wb') as fpath:
