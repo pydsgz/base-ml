@@ -4,7 +4,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import Matern, WhiteKernel, DotProduct, \
-    RationalQuadratic
+    RationalQuadratic, RBF
 from sklearn.linear_model import LogisticRegression
 from scipy.stats import randint as sp_randint
 from scipy.stats import uniform as sp_uniform
@@ -13,7 +13,6 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
-from skopt.learning.gaussian_process.kernels import RBF
 from skorch import NeuralNetClassifier
 from hyperopt import hp
 
