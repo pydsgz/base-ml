@@ -1,8 +1,10 @@
 import os
 import numpy as np
 import pandas as pd
+import pickle
 
 import torch
+from sklearn import preprocessing
 
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.neighbors import NearestNeighbors
@@ -492,6 +494,59 @@ class TADPOLEDataset(DataProvider):
             cur_meta = torch.from_numpy(self.meta_inf).float().to(device)
             # Thresholded similarity metric
             threshold_list = [5, 0, 0]
+            if self.args.graph_type == 1:
+                cur_adj = utils.get_thresholded_graph(cur_meta, threshold_list)
+            else:
+                raise NotImplementedError
+            with open(save_path, 'wb') as fpath:
+                torch.save(cur_adj, fpath)
+        return cur_adj
+
+
+class NHANESDataset(DataProvider):
+    """ NHANES dataset provider. """
+
+    def __init__(self, args):
+        self.args = args
+        self.all_non_numerical_idx = None
+
+        data_path = '../data/nhanes/'
+
+        data_x_path = os.path.join(data_path, 'features_all_cols.npy')
+        data_y_path = os.path.join(data_path, 'targets.npy')
+
+        self.data_x = np.load(data_x_path)
+        self.data_y = self.to_one_hot_encoding(np.load(data_y_path))
+        self.numerical_idx = np.arange(self.data_x.shape[-1])
+        self.non_num_idx = None
+        self.all_non_numerical_idx = None
+
+        # Calculate adjacency matrix
+        self.meta_inf = self.data_x
+        if self.args.graph_type:
+            self.adj = self.get_adjacency()
+
+    def get_adjacency(self):
+        save_path = self.args.output_path
+
+        save_path = os.path.join(save_path, 'adj_matrix_all.pt')
+
+        if self.args.graph_type == 1:
+            save_path = save_path.replace('.pt', '_thresholded.pt')
+        else:
+            raise NotImplementedError
+
+        # Load adjacency matrix if available, otherwise calculate it
+        if os.path.exists(save_path):
+            with open(save_path, 'rb') as fpath:
+                cur_adj = torch.load(fpath)
+        else:
+            # Calculate adjacency using given similarity metric.
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            cur_meta = torch.from_numpy(self.meta_inf).float().to(device)
+            # Thresholded similarity metric
+            cur_meta = cur_meta[:, :2]
+            threshold_list = cur_meta.std(0)
             if self.args.graph_type == 1:
                 cur_adj = utils.get_thresholded_graph(cur_meta, threshold_list)
             else:
