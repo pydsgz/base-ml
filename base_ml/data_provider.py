@@ -5,6 +5,7 @@ import pickle
 
 import torch
 from sklearn import preprocessing
+from sklearn.datasets import make_classification
 
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.neighbors import NearestNeighbors
@@ -281,11 +282,12 @@ class DizzyregDataset(DataProvider):
     def _load_data(self):
         """Load data x and data y."""
 
-        path_data_x = '../data/dizzyreg/t%s_df.csv' % self.task_num
-        path_data_y = '../data/dizzyreg/label_df_t%s.csv' % self.task_num
-        path_meta = '../data/dizzyreg/meta_df_t%s.csv' % self.task_num
-        path_numerical_columns = '../data/dizzyreg/num_columns_v2.csv'
-        path_nonnumerical_columns = '../data/dizzyreg/non_num_columns_v2.csv'
+        path_data_x = '/workspace/base-ml/data/dizzyreg/t%s_df.csv' % \
+                      self.task_num
+        path_data_y = '/workspace/base-ml/data/dizzyreg/label_df_t%s.csv' % self.task_num
+        path_meta = '/workspace/base-ml/data/dizzyreg/meta_df_t%s.csv' % self.task_num
+        path_numerical_columns = '/workspace/base-ml/data/dizzyreg/num_columns_v2.csv'
+        path_nonnumerical_columns = '/workspace/base-ml/data/dizzyreg/non_num_columns_v2.csv'
 
         read_data_x = pd.read_csv(path_data_x)
         read_data_y = pd.read_csv(path_data_y)
@@ -337,7 +339,7 @@ class DizzyregDataset(DataProvider):
             self.adj = self.get_adjacency()
 
     def get_adjacency(self):
-        data_path = '../data/dizzyreg/'
+        data_path = '/workspace/base-ml/data/dizzyreg/'
         save_path = os.path.dirname(data_path)
 
         save_path = os.path.join(save_path, 'adj_matrix_all.pt')
@@ -432,9 +434,15 @@ class TADPOLEDataset(DataProvider):
     def _load_data(self):
         """Load data x and data y."""
 
-        path_data_x = '../data/tadpole/adni_one_baseline_feature_data.csv'
-        path_data_y = '../data/tadpole/adni_one_baseline_label_data.csv'
-        path_meta = '../data/tadpole/adni_one_baseline_meta_data.csv'
+        path_data_x = \
+            '/workspace/base-ml/data/tadpole/adni_one_baseline_feature_data' \
+            '.csv'
+        path_data_y = \
+            '/workspace/base-ml/data/tadpole/adni_one_baseline_label_data' \
+                      '.csv'
+        path_meta = '/workspace/base-ml/data/tadpole' \
+                    '/adni_one_baseline_meta_data' \
+                    '.csv'
         read_data_x = pd.read_csv(path_data_x)
         read_data_y = pd.read_csv(path_data_y)  # 0 NL, 1, MCI, 2 Dementia
         read_data_meta = pd.read_csv(path_meta)[['AGE', 'PTGENDER', 'APOE4']]
@@ -507,6 +515,7 @@ class NHANESDataset(DataProvider):
     """ NHANES dataset provider. """
 
     def __init__(self, args):
+        super(NHANESDataset, self).__init__()
         self.args = args
         self.all_non_numerical_idx = None
 
@@ -549,6 +558,75 @@ class NHANESDataset(DataProvider):
             threshold_list = cur_meta.std(0)
             if self.args.graph_type == 1:
                 cur_adj = utils.get_thresholded_graph(cur_meta, threshold_list)
+            else:
+                raise NotImplementedError
+            with open(save_path, 'wb') as fpath:
+                torch.save(cur_adj, fpath)
+        return cur_adj
+
+
+class SyntheticDataset(DataProvider):
+    # TODO allow parameter change later on to make it more dynamic
+    """Generated dataset provider."""
+    def __init__(self, args):
+        super(SyntheticDataset, self).__init__()
+        self.args = args
+        self.all_non_numerical_idx = None
+        self._load_data()
+
+    def _load_data(self):
+        """Load feature and label data."""
+        data_x, data_y = make_classification(n_samples=10000, n_features=20,
+                                             n_informative=10,
+                                             n_redundant=0, n_repeated=0,
+                                             n_classes=2,
+                                             n_clusters_per_class=4,
+                                             weights=None, flip_y=0.01,
+                                             class_sep=1.0, hypercube=True,
+                                             shift=0.0, scale=1.0,
+                                             shuffle=True,
+                                             random_state=self.args.rand_seed)
+
+        self.data_x = data_x
+        self.data_y = self.to_one_hot_encoding(data_y)
+        self.numerical_idx = np.arange(data_x.shape[-1])
+        self.non_num_idx = None
+        self.all_non_numerical_idx = None
+
+        # Calculate adjacency matrix
+        self.meta_inf = data_x[:, :1].astype('float32')
+        if self.args.graph_type:
+            self.adj = self.get_adjacency()
+
+    def get_adjacency(self):
+        save_path = self.args.output_path
+
+        save_path = os.path.join(save_path, 'adj_matrix_all.pt')
+
+        if self.args.graph_type == 1:
+            save_path = save_path.replace('.pt', '_thresholded.pt')
+        elif self.args.graph_type == 2:
+            save_path = save_path.replace('.pt', '_knn.pt')
+        elif self.args.graph_type == 3:
+            save_path = save_path.replace('.pt', '_heom.pt')
+        elif self.args.graph_type == 4:
+            save_path = save_path.replace('.pt', '_HeomSubset.pt')
+        else:
+            raise NotImplementedError
+
+        # Load adjacency matrix if available, otherwise calculate it
+        if os.path.exists(save_path):
+            with open(save_path, 'rb') as fpath:
+                cur_adj = torch.load(fpath)
+        else:
+            # Calculate adjacency using given similarity metric.
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            cur_meta = torch.from_numpy(self.meta_inf).float().to(device)
+            # Thresholded similarity metric
+            threshold_list = [cur_meta.std(0).item()]
+            if self.args.graph_type == 1:
+                cur_adj = utils.get_thresholded_eucledian(cur_meta.cpu(),
+                                                          threshold_list)
             else:
                 raise NotImplementedError
             with open(save_path, 'wb') as fpath:

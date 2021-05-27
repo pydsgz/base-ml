@@ -34,8 +34,9 @@ def main():
     start_time = time.time()
     parser = argparse.ArgumentParser(description='PyTorch Dizzyreg Experiments')
     parser.add_argument('-x', '--exp_num', default=8, type=int, help='')
-    parser.add_argument('-d', '--dataset', default='dizzyreg3', type=str,
-                        help='Dataset name can be dizzyreg{1,2,3}.')
+    parser.add_argument('-d', '--dataset', default='synthetic', type=str,
+                        help='Dataset name can be dizzyreg{1,2,3}, tadpole, '
+                             'nhanes, synthetic')
     parser.add_argument('--output_path', default='./outputs/%s/',
                         type=str,
                         help='Location where all outputs will be saved.')
@@ -79,7 +80,6 @@ def main():
     args.cv_folds = 10
     args.rand_seed = 0
     args.baseline_only = True
-    args.device = 2
     args.device = 'cuda:%s' % args.device if torch.cuda.is_available() else \
         'cpu'
     mlp_max_iter = 1000
@@ -103,8 +103,14 @@ def main():
         dataset = dp.DizzyregDataset(args, 2)
     elif args.dataset == 'dizzyreg3':
         dataset = dp.DizzyregDataset(args, 3)
+    elif args.dataset == 'tadpole':
+        dataset = dp.TADPOLEDataset(args)
     elif args.dataset == 'mnist':
         dataset = dp.MNISTDataset(args)
+    elif args.dataset == 'nhanes':
+        dataset = dp.NHANESDataset(args)
+    elif args.dataset == 'synthetic':
+        dataset = dp.SyntheticDataset(args)
     else:
         raise NotImplementedError
 
@@ -147,7 +153,7 @@ def main():
 
 
     trainer = tp.ClassificationTrainer(dataset, model_list, args)
-    # trainer.train()
+    trainer.train()
 
     # #########################
     # # Proposed model
