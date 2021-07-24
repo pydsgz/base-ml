@@ -1,0 +1,15 @@
+class_kwargs:
+    timesteps: 5
+
+gnn_kwargs:
+    in_channels: 22
+    out_channels: 16
+    K: 3
+
+rnn_kwargs:
+    input_size: 16
+    hidden_size: 16
+
+fc_kwargs:
+    in_features: 16
+    out_features: 22

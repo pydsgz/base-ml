@@ -25,16 +25,18 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
 
 sys.path.append('../')
-from quick_ml import models, utils, model_wrapper
-from quick_ml import data_provider as dp
-from quick_ml import trainer_provider as tp
+from base_ml import models, utils, model_wrapper
+from base_ml import data_provider as dp
+from base_ml import trainer_provider as tp
 import time
 from ray.tune.sklearn import TuneSearchCV
+from skopt import BayesSearchCV
+from base_ml import hyperparam_provider as hparam
 
 def main():
     start_time = time.time()
     parser = argparse.ArgumentParser(description='PyTorch Dizzyreg Experiments')
-    parser.add_argument('-x', '--exp_num', default=7, type=int, help='')
+    parser.add_argument('-x', '--exp_num', default=8, type=int, help='')
     parser.add_argument('-d', '--dataset', default='dizzyreg3', type=str,
                         help='Dataset name can be dizzyreg{1,2,3}.')
     parser.add_argument('--output_path', default='./outputs/dizzyreg_gnn_%s/',
@@ -63,6 +65,10 @@ def main():
     parser.add_argument('--p_remain', default=1.0, type=float,
                         help='If 1.0 will not simulate missingess, else if between (0,1) will only retain given '
                              'p_remain ration of features and randomly simulate missingness.')
+    parser.add_argument('--random_search', default=False, type=bool,
+                        help='If True, will perform randomized seaerch '
+                             'crossvalidation.')
+
     args = parser.parse_args()
 
 
@@ -123,8 +129,15 @@ def main():
         LinearDiscriminantAnalysis()
     ]
 
+    if args.random_search:
+        for k, v in enumerate(model_list):
+            hyperparam_handler = hparam.HyperParameterProvider(v)
+            params = hyperparam_handler.parameters
+            model_list[k] = RandomizedSearchCV(v, params,
+                                               random_state=args.rand_seed)
+
     trainer = tp.ClassificationTrainer(dataset, model_list, args)
-    # trainer.train()
+    trainer.train()
 
     # #########################
     # # Proposed model
@@ -157,7 +170,7 @@ def main():
     # # Transductive model
     model_list = [gnn_net]
     trainer = tp.MGMCTrainer(dataset, model_list, args)
-    trainer.train()
+    # trainer.train()
     print(time.time() - start_time)
 
 

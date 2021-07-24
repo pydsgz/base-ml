@@ -48,18 +48,19 @@ def plot_confusion_matrix(cm, classes,
                           title='Confusion matrix',
                           cmap=plt.cm.Blues,
                           filename=None):
-    """
-    Print and plot the confusion matrix given
+    """Print and plot the confusion matrix given
+
     Args:
-        cm:
-        classes:
-        normalize:
-        title:
-        cmap:
-        filename:
+        cm (numpy.ndarray): Confusion matrices
+        classes (:obj:`list` of :obj:str): class labels as list
+        normalize (:obj:`bool`): Set to True to normalize to range [0, 1]
+        title (:obj:`str`): Plot title name
+        cmap (matplotlib.pyplot.cm): colormap to use
+        filename (:obj:`str`, optional): If filename is given, will save figure
+            using this filename.
 
     Returns:
-
+        (:obj:`plt.figure`)
     """
     """This function prints and plots the confusion matrix.
 
@@ -1316,7 +1317,7 @@ def encode_ordinal_feat(df, column_list, encoding_dict):
     """Change encoding of ordinal features.
 
     Args:
-        df:
+        df ():
         column_list:
         encoding_dict:
 
@@ -1446,7 +1447,7 @@ def get_train_test_dataset_list(args, trainer, pre_processor, is_mgmc=False):
 
 # TODO change to property getter in the future.
 def get_feature_attributions(args, model_list, data_x_list, data_y_list,
-                             col_names):
+                             col_names, is_mgmc):
     """Get feature attributions.
 
     Get feature attributions for given list of saved Pipeline models and
@@ -1469,7 +1470,9 @@ def get_feature_attributions(args, model_list, data_x_list, data_y_list,
         # Get model
         #     model = i._final_estimator.best_estimator_.module_
         device_ = "cuda:1"
-        if "MGMC" in i._final_estimator.module_.__class__.__name__:
+        # if "MGMC" in i._final_estimator.best_estimator_.module_.__class__\
+        #         .__name__:
+        if is_mgmc:
             model = i._final_estimator.module_
             model.to(device_)
             targets = torch.tensor(data_y_list[k].argmax(1)).to(
@@ -1497,7 +1500,7 @@ def get_feature_attributions(args, model_list, data_x_list, data_y_list,
             mean_fa = mean_fa[:-args.num_class]
 
         else:
-            model = i._final_estimator.module_
+            model = i._final_estimator.best_estimator_.module_
             model.to(device_)
             attr = IntegratedGradients(model)
             input_ = torch.tensor(data_x_list[k]).to(torch.device(device_))
@@ -1517,10 +1520,9 @@ def save_fig_list(out_path, fig_list):
     """Save given list of figures
 
     Args:
-        out_path:
-        fig_list:
+        out_path (:obj:`str`): directory where to save figures.
+        fig_list (:obj:`list` of :obj:`matplotlib.figure.Figure`):
 
-    Returns:
     """
     if not os.path.exists(out_path):
         os.makedirs(out_path)

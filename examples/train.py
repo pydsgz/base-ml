@@ -150,13 +150,11 @@ def main():
             model_list[k] = RandomizedSearchCV(v, params,
                                                random_state=args.rand_seed,
                                                n_iter=args.hp_iter)
-
-
     trainer = tp.ClassificationTrainer(dataset, model_list, args)
     trainer.train()
 
     # #########################
-    # # Proposed model
+    # # GNN model
     # #########################
     cb_earlystop = skorch.callbacks.EarlyStopping(patience=30,
                                                   monitor='val_acc_crit',
@@ -184,7 +182,7 @@ def main():
         lr=0.001,
         train_split=None,
     )
-    # # Transductive model
+    # #Transductive model
     model_list = [gnn_net]
     trainer = tp.MGMCTrainer(dataset, model_list, args)
     if args.random_search:
@@ -196,6 +194,7 @@ def main():
         trainer.train()
 
     print(time.time() - start_time)
+
 
 if __name__ == '__main__':
     main()

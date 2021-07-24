@@ -328,13 +328,13 @@ class DizzyregDataset(DataProvider):
             new_data_y = np.eye(num_class)[new_data_y.astype(int).reshape(-1)]
             new_data_y = new_data_y.astype('float32')
         self.orig_column_names = read_data_x.columns
-        self.data_x = new_data_x
-        self.data_y = new_data_y
-        self.numerical_idx = num_col
-        self.non_num_idx = non_num_col
+        self.data_x = new_data_x  # N x F
+        self.data_y = new_data_y  # N x C
+        self.numerical_idx = num_col # list of idx
+        self.non_num_idx = non_num_col # None
 
         # Calculate adjacency matrix
-        self.meta_inf = new_data_meta.astype('float32')
+        self.meta_inf = new_data_meta.astype('float32') # N x 3
         if self.args.graph_type:
             self.adj = self.get_adjacency()
 
@@ -346,12 +346,12 @@ class DizzyregDataset(DataProvider):
 
         if self.args.graph_type == 1:
             save_path = save_path.replace('.pt', '_thresholded.pt')
-        elif self.args.graph_type == 2:
-            save_path = save_path.replace('.pt', '_knn.pt')
-        elif self.args.graph_type == 3:
-            save_path = save_path.replace('.pt', '_heom.pt')
-        elif self.args.graph_type == 4:
-            save_path = save_path.replace('.pt', '_HeomSubset.pt')
+        # elif self.args.graph_type == 2:
+        #     save_path = save_path.replace('.pt', '_knn.pt')
+        # elif self.args.graph_type == 3:
+        #     save_path = save_path.replace('.pt', '_heom.pt')
+        # elif self.args.graph_type == 4:
+        #     save_path = save_path.replace('.pt', '_HeomSubset.pt')
         else:
             raise NotImplementedError
 
@@ -464,12 +464,18 @@ class TADPOLEDataset(DataProvider):
         new_data_x = np.concatenate([concat_meta, new_data_x], 1)
         print(new_data_x.shape, new_data_y.shape, new_data_meta.shape)
 
+        self.orig_column_names = ['Age', 'Gender', 'APOE4'] + \
+                                 list(read_data_x.columns)
         self.data_x = new_data_x
         self.data_y = self.to_one_hot_encoding(new_data_y)
         self.numerical_idx = np.arange(new_data_x.shape[-1])
         self.numerical_idx = np.delete(self.numerical_idx, [2])  # Remove APOE column idx
         self.non_num_idx = np.array([2])
         self.all_non_numerical_idx = None
+
+        # self.numerical_idx = np.arange(self.data_x.shape[-1])
+        # self.non_num_idx = None
+        # self.all_non_numerical_idx = None
 
         # Calculate adjacency matrix
         self.meta_inf = new_data_meta.astype('float32')
@@ -576,7 +582,7 @@ class SyntheticDataset(DataProvider):
 
     def _load_data(self):
         """Load feature and label data."""
-        data_x, data_y = make_classification(n_samples=10000, n_features=20,
+        data_x, data_y = make_classification(n_samples=5000, n_features=20,
                                              n_informative=10,
                                              n_redundant=0, n_repeated=0,
                                              n_classes=2,
@@ -587,6 +593,7 @@ class SyntheticDataset(DataProvider):
                                              shuffle=True,
                                              random_state=self.args.rand_seed)
 
+        self.orig_column_names = np.arange(data_x.shape[-1])
         self.data_x = data_x
         self.data_y = self.to_one_hot_encoding(data_y)
         self.numerical_idx = np.arange(data_x.shape[-1])
