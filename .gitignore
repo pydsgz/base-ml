@@ -3,7 +3,7 @@
 
 # Local files
 data
-notebooks
+notebooks/major_revision_05_2021
 *.ipynb_checkpoints
 .idea
 
