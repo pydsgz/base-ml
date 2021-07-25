@@ -33,7 +33,9 @@ from base_ml import hyperparam_provider as hparam
 def main():
     start_time = time.time()
     parser = argparse.ArgumentParser(description='PyTorch Dizzyreg Experiments')
-    parser.add_argument('-x', '--exp_num', default=8, type=int, help='')
+    parser.add_argument('-x', '--exp_num', default=8, type=int,
+                        help='Just a unique number used to determine outputs '
+                             'from current experiment.')
     parser.add_argument('-d', '--dataset', default='synthetic', type=str,
                         help='Dataset name can be dizzyreg{1,2,3}, tadpole, '
                              'nhanes, synthetic')
