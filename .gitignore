@@ -3,8 +3,18 @@
 
 # Local files
 data
-notebooks
+notebooks/major_revision_05_2021
 *.ipynb_checkpoints
 .idea
 
+docs/build
+
 examples/outputs/
+
+# Local hydra experiments
+examples/train_hydra_baselines.py
+examples/config/mnist
+examples/config/ppmi
+examples/config/tadpole
+examples/config/thyroid
+examples/config/ukbb
